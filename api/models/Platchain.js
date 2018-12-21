@@ -1,11 +1,14 @@
 //DEPENDECIES
 const sha256 = require('sha256');
+const uuid = require('uuid/v1'); 
 
 //PLATCHAIN CLASS
 class PlatChain {
     constructor(){
         this.chain = [];
         this.pendingTransactions = [];
+        this.currentNodeURL = `http://localhost:${process.env.PORT}`;
+        this.networkNodes = [];
         //CREATION OF GENESIS BLOCK
         this.createNewBlock(100, 'PLATIPLUS', 'GENESIS');
     }
@@ -34,12 +37,16 @@ class PlatChain {
         const new_transaction = {
             amount,
             sender,
-            recipient
+            recipient,
+            transactionID: uuid().split('-').join('')
         };
-        
-        this.pendingTransactions.push(new_transaction);
-        
-        return this.getLastBlock()['index'] + 1;
+
+        return new_transaction;
+    };
+    //ADD TRANSACTION TO PENDING TRANSACTIONS
+    addTransactionToPending(transaction){
+        this.pendingTransactions.push(transaction);
+        return this.getLastBlock()['index'] +1;
     };
     //HASH BLOCK METHOD
     hashBlock(previousBlockHash, currentBlockData, nonce){
