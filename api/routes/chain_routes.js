@@ -23,6 +23,8 @@ router.route('/node/register').post(chain_ctrl.registerNode);
 router.route('/node/register-bulk').post(chain_ctrl.registerBulkNode);
 //RECEIVE NEW BLOCK
 router.route('/node/receive').post(chain_ctrl.receiveNewBlock);
+//CONSENSUS
+router.route('/consensus').get(chain_ctrl.consensus);
 
 //MODULE EXPORTING
 module.exports = router;    

@@ -65,6 +65,33 @@ class PlatChain {
         }
 
         return nonce;
+    };
+    //CHAIN IS VALID
+    chainIsValid(platchain){
+        let validChain = true;
+
+        for(let i = 1; i < platchain.length; i++){
+            const currentBlock = platchain[i];
+            const previousBlock = platchain[i-1];
+            const blockHash = this.hashBlock(previousBlock['hash'], {transactions: currentBlock['transactions'], index: currentBlock['index']}, currentBlock['nonce']);
+
+            blockHash.substring(0, 4) !== '0000' ? validChain = false : validChain = true;
+            currentBlock['previousBlockHash'] != previousBlock['hash'] ? validChain = false : validChain = true;
+
+        }
+
+        const genesisBlock = platchain[0];
+
+        const correctNonce = genesisBlock['nonce'] === 100;
+        const correctPreviousBlockHash = genesisBlock['previousBlockHash'] === '0';
+        const correctHash = genesisBlock['hash'] === '0';
+        const correctTransactions = genesisBlock['transactions'].length === 0;
+
+        if(!correctNonce || !correctPreviousBlockHash || !correctHash || !correctTransactions){
+            validChain = false;
+        }
+
+        return validChain;
     }
 }
 

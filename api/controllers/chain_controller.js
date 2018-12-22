@@ -184,6 +184,52 @@ const receiveNewBlock = (request, response) => {
         response.status(500).json({error: true, data: {message: 'NEW BLOCK REJECTED', block: newBlock}});
     }
 };
+//CONSENSUS
+const consensus = (request, response) => {
+    const requestPromises = [];
+
+    PlatCoin.networkNodes.forEach((nodeURL) => {
+        const options = {
+            uri: nodeURL + 'check',
+            method: 'GET',
+            json: true,
+        };
+        requestPromises.push(request(options));
+    });
+
+    Promise.all(requestPromises)
+    .then((platchains) => {
+        const currentChainLength = PlatCoin.chain.length;
+        let maxChainLength = currentChainLength;
+        let newLongestChain = null;
+        let newPendingTransactions = null;
+
+        platchains.forEach((platchain) => {
+            if (platchain.chain.length > maxChainLength){
+                maxChainLength = platchain.chain.length;
+                newLongestChain = platchain.chain;
+                newPendingTransactions = platchain.pendingTransactions;
+            }
+        });
+
+        if(!newLongestChain || (newLongestChain && !PlatCoin.chainIsValid(newLongestChain))){
+            response.status(200).json({error: false, data: {
+                message:'CURRENT CHAIN HAS NOT BEEN REPLACED', 
+                chain: PlatCoin.chain
+            }});
+        } else if (newLongestChain && PlatCoin.chainIsValid(newLongestChain)){
+            PlatCoin.chain = newLongestChain;
+            PlatCoin.pendingTransactions = newPendingTransactions;
+            response.status(200).json({error: false, data: {
+                message: 'THIS CHAIN HAS BEEN REPLACED',
+                chain: PlatCoin.chain
+            }});
+        }
+    })
+    .catch((error) => {
+        response.status(500).json({error: true, message: error.message});
+    });
+};
 
 //MODULE EXPORTING
 module.exports = {
@@ -194,5 +240,6 @@ module.exports = {
     registerNode,
     registerBulkNode,
     broadcast_transaction,
-    receiveNewBlock
+    receiveNewBlock,
+    consensus
 };
