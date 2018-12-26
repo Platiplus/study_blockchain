@@ -1,13 +1,7 @@
 //DEPENDENCIES
-const PlatChain = require('../models/Platchain');
-const request = require('request-promise');  
-const uuid = require('uuid/v1'); 
-
-//NEW PLATCHAIN
-const PlatCoin = new PlatChain();
-
-//NODE ADDRESS
-const nodeAddress = uuid().split('-').join('');
+const PlatCoin = require('../models/PlatCoin').PlatCoin;
+const nodeAddress = require('../models/PlatCoin').NodeAddress;
+const request_promise = require('request-promise');
 
 //METHODS DECLARATION
 
@@ -28,7 +22,7 @@ const create_transaction = (request, response) => {
 //BROADCAST A TRANSACTION
 const broadcast_transaction = (request, response) => {
     const tr_info = request.body;
-    const newTransaction = (tr_info.amount, tr_info.sender, tr_info.recipient);
+    const newTransaction = PlatCoin.createNewTransaction(tr_info.amount, tr_info.sender, tr_info.recipient);
 
     PlatCoin.addTransactionToPending(newTransaction);
 
@@ -36,12 +30,12 @@ const broadcast_transaction = (request, response) => {
 
     PlatCoin.networkNodes.forEach((nodeURL) => {
         const requestOptions = {
-            uri: nodeURL + '/transaction/create',
+            uri: nodeURL + '/api/platchain/transaction/create',
             method: 'POST',
             json: true,
             body: newTransaction
         };
-        requestPromises.push(request(requestOptions));
+        requestPromises.push(request_promise(requestOptions));
     });
 
     Promise.all(requestPromises)
@@ -74,18 +68,18 @@ const mine_block = (request, response) => {
 
     PlatCoin.networkNodes.forEach((nodeURL) => {
         const requestOptions = {
-            uri: nodeURL + '/node/receive',
+            uri: nodeURL + '/api/platchain/node/receive',
             method: 'POST',
             json: true,
             body: { newBlock }
         };
-        requestPromises.push(request(requestOptions));
+        requestPromises.push(request_promise(requestOptions));
     });
 
     Promise.all(requestPromises)
     .then((data) => {
         const requestOptions = {
-            uri: PlatCoin.currentNodeURL + '/transaction/broadcast',
+            uri: PlatCoin.currentNodeURL + '/api/platchain/transaction/broadcast',
             method: 'POST',
             json: true,
             body: {
@@ -94,7 +88,7 @@ const mine_block = (request, response) => {
                 recipient: nodeAddress
             }
         };
-        return request(requestOptions);
+        return request_promise(requestOptions);
     })
     .then((result) => {
         response.status(200).json({error: false, data: { message: "Block mined and broadcasted successfully!" , block: newBlock}});
@@ -114,27 +108,27 @@ const registerBroadcastNode = (request, response) => {
 
     PlatCoin.networkNodes.forEach((nodeURL) => {
         const requestOptions = {
-            uri: nodeURL + '/node/register',
+            uri: nodeURL + '/api/platchain/node/register',
             method: 'POST',
             json: true,
             body: {
                 newNodeURL
             }
         };
-        registerNodePromises.push(request(requestOptions));
+        registerNodePromises.push(request_promise(requestOptions));
     });
 
     Promise.all(registerNodePromises)
     .then((data) => {
         const bulkNodesRegisterOptions = {
-            uri: newNodeURL + '/node/register-bulk',
+            uri: newNodeURL + '/api/platchain/node/register-bulk',
             method: 'POST',
             json: true,
             body: {
                 allNetworkNodes: [...PlatCoin.networkNodes, PlatCoin.currentNodeURL]
             }
         };
-        return request(bulkNodesRegisterOptions);
+        return request_promise(bulkNodesRegisterOptions);
     })
     .then((data) => {
         response.status(200).json({error: false, data: {message: 'NEW NODE REGISTERED SUCCESSFULLY', data}});
@@ -190,11 +184,11 @@ const consensus = (request, response) => {
 
     PlatCoin.networkNodes.forEach((nodeURL) => {
         const options = {
-            uri: nodeURL + 'check',
+            uri: nodeURL + '/api/platchain/check',
             method: 'GET',
             json: true,
         };
-        requestPromises.push(request(options));
+        requestPromises.push(request_promise(options));
     });
 
     Promise.all(requestPromises)
@@ -233,6 +227,7 @@ const consensus = (request, response) => {
 
 //MODULE EXPORTING
 module.exports = {
+    PlatCoin,
     check_chain,
     create_transaction,
     mine_block,

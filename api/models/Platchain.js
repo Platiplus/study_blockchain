@@ -40,7 +40,6 @@ class PlatChain {
             recipient,
             transactionID: uuid().split('-').join('')
         };
-
         return new_transaction;
     };
     //ADD TRANSACTION TO PENDING TRANSACTIONS
@@ -92,6 +91,58 @@ class PlatChain {
         }
 
         return validChain;
+    }
+    //GET BLOCK BY BLOCK HASH
+    getBlock(blockHash){
+        let correctBlock = null;
+        this.chain.forEach((block) => {
+            block.hash === blockHash ? correctBlock = block: null; 
+        });
+        return correctBlock;
+    }
+    //GET TRANSACTION BY TRANSACTION ID
+    getTransacion(transactionID){
+        let correctTransaction = null;
+        let correctBlock = null;
+        this.chain.forEach((block) => {
+            block.transactions.forEach((transaction) => {
+                if(transaction.transactionID === transactionID){
+                    correctTransaction = transaction;
+                    correctBlock = block;
+                }
+            });
+        });
+        return {
+            transaction: correctTransaction,
+            block: correctBlock
+        };
+    }
+    //GET TRANSACTIONS DATA FROM SPECIFIC ADDRESS
+    getAddressData(address){
+        const addressTransactions = [];
+        this.chain.forEach((block) => {
+            block.transactions.forEach((transaction) => {
+                if (transaction.sender === address || transaction.recipient === address){
+                    addressTransactions.push(transaction);
+                }
+            });
+        });
+
+        let balance = 0;
+
+        addressTransactions.forEach((transaction) => {
+            if(transaction.recipient === address){
+                balance += transaction.amount;
+            } else {
+                balance -= transaction.amount;
+            }
+        });
+
+        return {
+            addressTransactions,
+            balance
+        };
+
     }
 }
 

@@ -14,7 +14,7 @@ router.route('/transaction/create').post(chain_ctrl.create_transaction);
 //BROADCAST TRANSACTION
 router.route('/transaction/broadcast').post(chain_ctrl.broadcast_transaction);
 //MINE A NEW BLOCK
-router.route('/mine').get(chain_ctrl.mine_block);
+router.route('/block/mine').get(chain_ctrl.mine_block);
 //REGISTER AND BROADCAST NODE
 router.route('/node/register-broadcast').post(chain_ctrl.registerBroadcastNode);
 //REGISTER NODE
