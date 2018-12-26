@@ -1,12 +1,16 @@
 //DEPENDENCIES
-require('dotenv').config();
-
 const http = require('http');
 const app = require('./app');
-//PORT SELECTION
-const port = process.env.PORT || 8080;
+//PORTS SELECTION
+const ports = [3000, 3001, 3002, 3003, 3004, 3005];
+
+let node_n = 0;
+
 //SERVER CREATION
-const server = http.createServer(app);
-server.listen(port, () => {
-    console.log('PlatChain Server is running on port: ' + port);
+ports.forEach((port) => {
+    const server = http.createServer(app);
+    server.listen(port, () => {
+        node_n += 1;
+        console.log(`PlatChain NODE ${node_n} is running on port: ${port}`);
+    });
 });
