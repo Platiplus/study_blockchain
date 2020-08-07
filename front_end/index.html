@@ -53,7 +53,7 @@
 						</tr>
 						<tr>	
 							<td class="bold">Index</td>
-							<td>{{ block.index }}</td>
+							<td>{{ block.idx }}</td>
 						</tr>
 						<tr>	
 							<td class="bold">Time Stamp</td>
@@ -65,7 +65,7 @@
 						</tr>
 						<tr>	
 							<td class="bold">Previous Hash</td>
-							<td>{{ block.previousBlockHash }}</td>
+							<td>{{ block.hashPreviousBlock }}</td>
 						</tr>
 						<tr>	
 							<td class="bold">Number Transactions</td>
@@ -81,15 +81,15 @@
 					<tbody>
 						<tr>	
 							<td class="bold">Sender</td>
-							<td>{{ transaction.sender }}</td>
+							<td>{{ transaction.senderAddress }}</td>
 						</tr>
 						<tr>	
 							<td class="bold">Recipient</td>
-							<td>{{ transaction.recipient }}</td>
+							<td>{{ transaction.recipientAddress }}</td>
 						</tr>
 						<tr>	
 							<td class="bold">Amount</td>
-							<td>{{ transaction.amount }}</td>
+							<td>{{ transaction.value }}</td>
 						</tr>
 					</tbody>
 				</table>
@@ -97,7 +97,7 @@
 
 				<!-- 'display address' table -->
 				<h3 class="table-title" ng-if="addressData">Address</h3>
-				<p id="balance-text" ng-if="addressData">(Balance: {{ addressData.addressBalance }})</p>
+				<p id="balance-text" ng-if="addressData">(Balance: {{ addressData.balance }})</p>
 				<table class="table table-striped" ng-if="addressData">
 					<thead>
 						<tr>
@@ -108,9 +108,9 @@
 					</thead>
 					<tbody>
 						<tr ng-repeat="transaction in addressData.addressTransactions">
-							<td>{{ transaction.sender }}</td>
-							<td>{{ transaction.recipient }}</td>
-							<td>{{ transaction.amount }}</td>
+							<td>{{ transaction.senderAddress }}</td>
+							<td>{{ transaction.recipientAddress }}</td>
+							<td>{{ transaction.value }}</td>
 						</tr>
 					</tbody>
 				</table>
@@ -138,8 +138,8 @@
 				});
 			};
 
-			$scope.fetchTransaction = function(transactionId) {
-				$http.get(`/explorer/transaction/${transactionId}`)
+			$scope.fetchTransaction = function(idTransaction) {
+				$http.get(`/explorer/transaction/${idTransaction}`)
 				.then(response => {
 					$scope.transaction = response.data.data.transaction;
 					$scope.block = null;

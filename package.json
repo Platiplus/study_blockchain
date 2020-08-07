@@ -4,7 +4,12 @@
   "description": "Studying blockchain principles by building one",
   "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js 3000 http://localhost:3000",
+    "node_1": "node server.js 3001 http://localhost:3001",
+    "node_2": "node server.js 3002 http://localhost:3002",
+    "node_3": "node server.js 3003 http://localhost:3003",
+    "node_4": "node server.js 3004 http://localhost:3004"
   },
   "repository": {
     "type": "git",
@@ -20,12 +25,10 @@
   },
   "homepage": "https://github.com/Platiplus/PlatChain#readme",
   "dependencies": {
-    "body-parser": "^1.18.3",
-    "dotenv": "^6.2.0",
-    "express": "^4.16.4",
-    "request": "^2.88.0",
-    "request-promise": "^4.2.2",
+    "axios": "^0.19.2",
+    "body-parser": "^1.19.0",
+    "express": "^4.17.1",
     "sha256": "^0.2.0",
-    "uuid": "^3.3.2"
+    "uuid": "^8.2.0"
   }
 }

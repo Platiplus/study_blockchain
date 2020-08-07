@@ -1,240 +1,159 @@
-//DEPENDENCIES
-const PlatCoin = require('../models/PlatCoin').PlatCoin;
-const nodeAddress = require('../models/PlatCoin').NodeAddress;
-const request_promise = require('request-promise');
+const BlockChain = require('../models/blockchain');
+const axios = require('axios').default;
 
-//METHODS DECLARATION
+const {v1: uuid} = require('uuid');
+const platCoin = new BlockChain();
+const nodeAddress = uuid().split('-').join('');
 
-//CHECK THE ENTIRE BLOCKCHAIN
-const check_chain = (request, response) => {
-    response.status(200).json({error: false, data: PlatCoin});
+const check = (request, response) => {
+	response.status(200).json({error: false, data: platCoin});
 };
-//CREATE A NEW TRANSACTION
+
 const create_transaction = (request, response) => {
-    let transaction = request.body;
-    try{
-        const blockIndex = PlatCoin.addTransactionToPending(transaction);
-        response.status(200).json({error: false, data: `Transaction will be added on block ${blockIndex}.`});
-    } catch(error) {
-        response.status(500).json({error: true, data: error.message});
-    }    
-};
-//BROADCAST A TRANSACTION
-const broadcast_transaction = (request, response) => {
-    const tr_info = request.body;
-    const newTransaction = PlatCoin.createNewTransaction(tr_info.amount, tr_info.sender, tr_info.recipient);
+	const transaction = request.body;
+	const idxBlock = platCoin.addToPendingTransactions(transaction);
 
-    PlatCoin.addTransactionToPending(newTransaction);
-
-    const requestPromises = [];
-
-    PlatCoin.networkNodes.forEach((nodeURL) => {
-        const requestOptions = {
-            uri: nodeURL + '/api/platchain/transaction/create',
-            method: 'POST',
-            json: true,
-            body: newTransaction
-        };
-        requestPromises.push(request_promise(requestOptions));
-    });
-
-    Promise.all(requestPromises)
-    .then((data) => {
-        response.status(200).json({error: false, data: 'TRANSACTION CREATION AND BROADCASTING ENDED SUCCESSFULLY'});
-    })
-    .catch((error) => {
-        response.status(500).json({error: true, data: error.message});
-    })
-
-};
-//MINE A NEW BLOCK
-const mine_block = (request, response) => {
-    const lastBlock = PlatCoin.getLastBlock();
-
-    const previousBlockHash = lastBlock['hash'];
-        
-    const currentBlockData = {
-        transactions: PlatCoin.pendingTransactions,
-        index: lastBlock['index'] + 1
-    };
-
-    const nonce = PlatCoin.proofOfWork(previousBlockHash, currentBlockData);
-
-    const blockHash = PlatCoin.hashBlock(previousBlockHash, currentBlockData, nonce); 
-        
-    const newBlock = PlatCoin.createNewBlock(nonce, previousBlockHash, blockHash);
-
-    const requestPromises = [];
-
-    PlatCoin.networkNodes.forEach((nodeURL) => {
-        const requestOptions = {
-            uri: nodeURL + '/api/platchain/node/receive',
-            method: 'POST',
-            json: true,
-            body: { newBlock }
-        };
-        requestPromises.push(request_promise(requestOptions));
-    });
-
-    Promise.all(requestPromises)
-    .then((data) => {
-        const requestOptions = {
-            uri: PlatCoin.currentNodeURL + '/api/platchain/transaction/broadcast',
-            method: 'POST',
-            json: true,
-            body: {
-                amount: 12.5,
-                sender: '00',
-                recipient: nodeAddress
-            }
-        };
-        return request_promise(requestOptions);
-    })
-    .then((result) => {
-        response.status(200).json({error: false, data: { message: "Block mined and broadcasted successfully!" , block: newBlock}});
-    })
-    .catch((error) => {
-        response.status(500).json({error: true, data: error.message});
-    });
-};
-//REGISTER AND BROADCAST NODE
-const registerBroadcastNode = (request, response) => {
-    const newNodeURL = request.body.url;
-    if (PlatCoin.networkNodes.indexOf(newNodeURL) == -1){
-        PlatCoin.networkNodes.push(newNodeURL);
-    }
-
-    const registerNodePromises = [];
-
-    PlatCoin.networkNodes.forEach((nodeURL) => {
-        const requestOptions = {
-            uri: nodeURL + '/api/platchain/node/register',
-            method: 'POST',
-            json: true,
-            body: {
-                newNodeURL
-            }
-        };
-        registerNodePromises.push(request_promise(requestOptions));
-    });
-
-    Promise.all(registerNodePromises)
-    .then((data) => {
-        const bulkNodesRegisterOptions = {
-            uri: newNodeURL + '/api/platchain/node/register-bulk',
-            method: 'POST',
-            json: true,
-            body: {
-                allNetworkNodes: [...PlatCoin.networkNodes, PlatCoin.currentNodeURL]
-            }
-        };
-        return request_promise(bulkNodesRegisterOptions);
-    })
-    .then((data) => {
-        response.status(200).json({error: false, data: {message: 'NEW NODE REGISTERED SUCCESSFULLY', data}});
-    })
-    .catch((error) => {
-        response.status(500).json({error: true, data: error.message});
-    });
-        
-};
-//REGISTER A NODE IN THE NETWORK
-const registerNode = (request, response) => {
-    const newNodeURL = request.body.url;
-    const nodeNotPresent = PlatCoin.networkNodes.indexOf(newNodeURL) == -1;
-    const nodeNotCurrent = PlatCoin.currentNodeURL !== newNodeURL;
-
-    if(nodeNotPresent && nodeNotCurrent){
-        PlatCoin.networkNodes.push(newNodeURL);
-    }
-    response.status(200).json({error: false, data: 'NEW NODE REGISTERED SUCCESSFULLY'});
-};
-//REGISTER NODES BULK
-const registerBulkNode = (request, response) => {
-    const networkNodes = request.body.allNetworkNodes;
-    networkNodes.forEach((node) => {
-        const nodeNotPresent = PlatCoin.networkNodes.indexOf(node) == -1;
-        const nodeNotCurrent = PlatCoin.currentNodeURL.indexOf(node) !== node;
-
-        if(nodeNotPresent && nodeNotCurrent){
-            PlatCoin.networkNodes.push(node);
-        }
-    });
-    response.status(200).json({error: false, data: 'NODES REGISTERED SUCCESSFULLY'});
-};
-//RECEIVE NEW BLOCK
-const receiveNewBlock = (request, response) => {
-    const newBlock = request.body.newBlock;
-    const lastBlock = PlatCoin.getLastBlock();
-    const correctHash = lastBlock.hash === newBlock.previousBlockHash;
-    const correctIndex = lastBlock['index'] + 1 == newBlock['index'];
-
-    if(correctHash && correctIndex){
-        PlatCoin.chain.push(newBlock);
-        PlatCoin.pendingTransactions = [];
-        
-        response.status(200).json({error: false, data: {message: 'NEW BLOCK RECEIVED AND ACCEPTED', block: newBlock}});
-    } else {
-        response.status(500).json({error: true, data: {message: 'NEW BLOCK REJECTED', block: newBlock}});
-    }
-};
-//CONSENSUS
-const consensus = (request, response) => {
-    const requestPromises = [];
-
-    PlatCoin.networkNodes.forEach((nodeURL) => {
-        const options = {
-            uri: nodeURL + '/api/platchain/check',
-            method: 'GET',
-            json: true,
-        };
-        requestPromises.push(request_promise(options));
-    });
-
-    Promise.all(requestPromises)
-    .then((platchains) => {
-        const currentChainLength = PlatCoin.chain.length;
-        let maxChainLength = currentChainLength;
-        let newLongestChain = null;
-        let newPendingTransactions = null;
-
-        platchains.forEach((platchain) => {
-            if (platchain.chain.length > maxChainLength){
-                maxChainLength = platchain.chain.length;
-                newLongestChain = platchain.chain;
-                newPendingTransactions = platchain.pendingTransactions;
-            }
-        });
-
-        if(!newLongestChain || (newLongestChain && !PlatCoin.chainIsValid(newLongestChain))){
-            response.status(200).json({error: false, data: {
-                message:'CURRENT CHAIN HAS NOT BEEN REPLACED', 
-                chain: PlatCoin.chain
-            }});
-        } else if (newLongestChain && PlatCoin.chainIsValid(newLongestChain)){
-            PlatCoin.chain = newLongestChain;
-            PlatCoin.pendingTransactions = newPendingTransactions;
-            response.status(200).json({error: false, data: {
-                message: 'THIS CHAIN HAS BEEN REPLACED',
-                chain: PlatCoin.chain
-            }});
-        }
-    })
-    .catch((error) => {
-        response.status(500).json({error: true, message: error.message});
-    });
+	response.status(200).json({error: false, data: `Transaction will be added to block ${idxBlock}`});
 };
 
-//MODULE EXPORTING
+const mine_block = async (request, response) => {
+	try{
+		const lastBlock = platCoin.getLastBlock();
+		
+		const currentBlockData = {
+			transactions: platCoin.pendingTransactions,
+			idx: lastBlock['idx'] + 1
+		};
+
+		const nonce = platCoin.proofOfWork(lastBlock['hash'], currentBlockData);
+		const currentHash = platCoin.hashBlock(lastBlock['hash'], currentBlockData, nonce);
+
+		const newBlock = platCoin.createNewBlock(nonce, currentHash, lastBlock['hash']);
+
+		platCoin.networkNodes.forEach(async (nodeUrl) => {
+			await axios.post(`${nodeUrl}/api/blockchain/block/receive`, newBlock);
+		});
+
+		await axios.post(`${platCoin.nodeAddress}/api/blockchain/transaction/create-broadcast`, { value: 12.5, senderAddress: "MININGBOT", recipientAddress: nodeAddress });
+
+		response.status(200).json({error: false, data: newBlock});
+	} catch(error) {
+		response.status(500).json({error: true, data: error.message});
+	}  
+};
+
+const register_broadcast = async (request, response) => {
+	try {
+		const newNodeUrl = request.body.newNodeUrl;
+	
+		if (platCoin.networkNodes.indexOf(newNodeUrl) == -1) {
+			platCoin.networkNodes.push(newNodeUrl);
+		}
+		
+		platCoin.networkNodes.forEach(async (nodeUrl) => {
+			await axios.post(`${nodeUrl}/api/blockchain/node/register-one`, { newNodeUrl: newNodeUrl });
+		});
+	
+		await axios.post(`${newNodeUrl}/api/blockchain/node/register-multiple`, { networkNodes: [...platCoin.networkNodes, platCoin.nodeAddress]});
+		return response.status(200).json({ error: false, data: 'Node registered successfully on the network.' });
+	} catch (error) {
+		response.status(500).json({ error: true, data: error.message });
+	}
+};
+
+const register_node = (request, response) => {
+	const newNodeUrl = request.body.newNodeUrl;
+	if (platCoin.networkNodes.indexOf(newNodeUrl) == -1 && platCoin.nodeAddress !== newNodeUrl) {
+		platCoin.networkNodes.push(newNodeUrl);
+	}
+	response.status(200).json({error: false, data: 'Node registered successfully.'})
+};
+
+const register_multiple_nodes = (request, response) => {
+	const networkNodes = request.body.networkNodes;
+	networkNodes.forEach((nodeUrl) => {
+		if(platCoin.networkNodes.indexOf(nodeUrl) == -1  && platCoin.nodeAddress !== nodeUrl) {
+			platCoin.networkNodes.push(nodeUrl);
+		}
+	});
+
+	response.status(200).json({error: false, data: "Multiple nodes registered successfully."});
+};
+
+const create_broadcast = async (request, response) => {
+	try{
+		const transactionInfo = request.body;
+		const transaction = platCoin.createNewTransaction(transactionInfo.value, transactionInfo.senderAddress, transactionInfo.recipientAddress);
+		platCoin.addToPendingTransactions(transaction);
+
+		platCoin.networkNodes.forEach( async (nodeUrl) => {
+			await axios.post(`${nodeUrl}/api/blockchain/transaction/create`, transaction);
+		});
+			response.status(200).json({error: false, data: 'Transaction is created and will be broadcasted through the network'});
+	} catch(error) {
+			response.status(500).json({error: true, data: error.message});
+	}  
+};
+
+const receive_block = (request, response) => {
+	const newBlock = request.body;
+	const lastBlock = platCoin.getLastBlock();
+	const correctHash = lastBlock.hash === newBlock.hashPreviousBlock;
+	const correctIdx = lastBlock['idx'] + 1 === newBlock['idx'];
+
+	if(correctHash && correctIdx) {
+		platCoin.blockchain.push(newBlock);
+		platCoin.pendingTransactions = [];
+		response.status(200).json({error: false, data: newBlock});
+	} else {
+		response.status(500).json({error: true, data: 'Block rejected'});
+	}
+};
+
+const consensus = async (request, response) => {
+	const blockchain = [];
+	try {
+
+		for(var idx = 0; idx < platCoin.networkNodes.length; idx++) {
+			const response = await axios.get(`${platCoin.networkNodes[idx]}/api/blockchain/check`);
+			blockchain.push(response.data.data);
+		}
+
+		const chainSize = platCoin.blockchain.length;
+		let maxSize = chainSize;
+		let newLongestChain;
+		let newPendingTransactions;
+
+		blockchain.forEach((blockchain) => {
+			if(blockchain.blockchain.length > maxSize) {
+				maxSize = blockchain.blockchain.length;
+				newLongestChain = blockchain.blockchain;
+				newPendingTransactions = blockchain.pendingTransactions;
+			}
+		});
+
+		if (!newLongestChain || (newLongestChain && !platCoin.chainIsValid(newLongestChain))) {
+
+			response.status(500).json({ error: true, message: 'Chain wasn\'t replaced.', data: platCoin.blockchain });
+		} else {
+			platCoin.blockchain = newLongestChain;
+			platCoin.pendingTransactions = newPendingTransactions;
+			response.status(200).json({ error: false, message: 'Chain was replaced.', data: platCoin.blockchain });
+		}
+	} catch (error) {
+		response.status(500).json({ error: true, message: 'Chain wasn\'t replaced.', data: platCoin.blockchain });
+	}
+};
+
 module.exports = {
-    PlatCoin,
-    check_chain,
-    create_transaction,
-    mine_block,
-    registerBroadcastNode,
-    registerNode,
-    registerBulkNode,
-    broadcast_transaction,
-    receiveNewBlock,
-    consensus
+	check,
+	create_transaction,
+	mine_block,
+	register_broadcast,
+	register_node,
+	register_multiple_nodes,
+	create_broadcast,
+	receive_block,
+	consensus,
+	platCoin
 };
