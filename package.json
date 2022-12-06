@@ -26,8 +26,8 @@
   "homepage": "https://github.com/Platiplus/PlatChain#readme",
   "dependencies": {
     "axios": "^0.19.2",
-    "body-parser": "^1.19.0",
-    "express": "^4.17.1",
+    "body-parser": "^1.20.1",
+    "express": "^4.18.2",
     "sha256": "^0.2.0",
     "uuid": "^8.2.0"
   }
